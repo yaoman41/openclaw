@@ -31,6 +31,9 @@ RUN pnpm ui:build
 
 ENV NODE_ENV=production
 
+# Copy entrypoint script (writes initial config for reverse proxy support)
+COPY entrypoint.sh /app/entrypoint.sh
+
 # Allow non-root user to write temp files during runtime/tests.
 RUN chown -R node:node /app
 
@@ -39,11 +42,8 @@ RUN chown -R node:node /app
 # This reduces the attack surface by preventing container escape via root privileges
 USER node
 
-# Start gateway server with default config.
-# Binds to loopback (127.0.0.1) by default for security.
-#
-# For container platforms requiring external health checks:
-#   1. Set OPENCLAW_GATEWAY_TOKEN or OPENCLAW_GATEWAY_PASSWORD env var
-#   2. Override CMD: ["node","openclaw.mjs","gateway","--allow-unconfigured","--bind","lan"]
-CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan"]
-
+# Entrypoint script:
+# 1. Writes openclaw.json with trustedProxies for reverse proxy (Zeabur/Docker)
+# 2. Enables allowInsecureAuth for proxied HTTPS termination
+# 3. Starts the gateway with --bind lan
+CMD ["/bin/sh", "/app/entrypoint.sh"]
